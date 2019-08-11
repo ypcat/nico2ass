@@ -46,10 +46,10 @@ def get_channel(s, url):
 def get_comments(s, url):
     m = re.match(r'https://www.nicovideo.jp/watch/(\w+)', url)
     vid = m.group(1)
-    g = glob.glob(f'*{vid}*.json')
+    g = glob.glob(f'*{vid}*.ass')
     if g:
-        print(f'load from cache {g[0]}')
-        return get_ass(g[0], json.load(open(g[0])))
+        print(f'already processed {g[0]}')
+        return
     def get_api_data():
         print(f'get api data {url}')
         r = s.get(url, headers=HEADERS)
@@ -61,6 +61,9 @@ def get_comments(s, url):
         print('cannot get api data, login and try again')
         s.post(LOGIN, data=FORM, headers=HEADERS)
         d = get_api_data()
+    if not d:
+        print('cannot get api data, not from japan ip?')
+        sys.exit(1)
     q = [{'ping': {'content': 'rs:0'}}]
     n = 0
     for t in d.commentComposite.threads:
@@ -101,14 +104,11 @@ def get_comments(s, url):
                   {'ping': {'content': f'pf:{n}'}}]
             n += 1
     q += [{'ping': {'content': 'rf:0'}}]
-    print('get comments')
+    print(f'get {d.thread.commentCount} comments')
     url = 'https://nmsg.nicovideo.jp/api.json/'
     r = s.post(url, json=q, headers=HEADERS)
     comments = [c for c in r.json() if c.get('chat', {}).get('content', '')]
-    fn = f'{d.video.title}_{vid}.json'
-    with open(fn, 'w') as f:
-        print(f'save json comments {fn}')
-        json.dump(comments, f, indent=2)
+    fn = f'{d.video.title}_{vid}.ass'
     return get_ass(fn, comments)
 
 WIDTH = 1280
@@ -138,7 +138,7 @@ def find_first(keys, values, default):
     return default
 
 def get_ass(filename, comments):
-    filename = filename.replace('.json', '.ass')
+    print(f'convert {len(comments)} comments')
     comments = [attrdict.AttrDict(c) for c in comments]
     chats = []
     for c in comments:
@@ -189,6 +189,7 @@ def get_ass(filename, comments):
         text = f'{{{anim}{size}{color}}}{chat.text}'
         dialog = f'Dialogue: 2,{time0},{time1},style1,,0000,0000,0000,,{text}'
         lines.append(dialog)
+    print(f'save {filename}')
     with open(filename, 'w') as f:
         f.writelines(l + '\r\n' for l in lines)
 
