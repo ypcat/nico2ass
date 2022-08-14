@@ -6,7 +6,9 @@ import html
 import json
 import math
 import os
+import random
 import re
+import string
 import sys
 import urllib
 from pprint import pprint as pp
@@ -16,10 +18,17 @@ import requests
 
 from credentials import FORM
 
-HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0'}
-LOGIN = 'https://account.nicovideo.jp/api/v1/login'
+SESSION_PATH = os.path.join(os.path.dirname(__file__), 'session')
+SESSION_COOKIE = 'user_session='+open(SESSION_PATH).read().strip()+';'
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0',
+    "X-Frontend-Id": "6",
+    "X-Frontend-Version": "0",
+    'Cookie': SESSION_COOKIE,
+}
+#LOGIN = 'https://account.nicovideo.jp/api/v1/login'
 
-def main():
+def main0():
     s = requests.Session()
     s.mount('https://', requests.adapters.HTTPAdapter(max_retries=100))
     if len(sys.argv) < 2:
@@ -34,6 +43,60 @@ def main():
         print('invalid url')
         return 1
     return 0
+
+def main():
+    if len(sys.argv) < 2:
+        print(f'usage: {os.path.basename(sys.argv[0])} url')
+        return 1
+    url = sys.argv[1]
+    if re.match(r'https://ch.nicovideo.jp/\w+', url):
+        get_channel2(url)
+    elif re.match(r'https://www.nicovideo.jp/watch/\w+', url):
+        get_comments2(url)
+    else:
+        print('invalid url')
+        return 1
+    return 0
+
+def get_meta(url):
+    m = re.match(r'https://www.nicovideo.jp/watch/(\w+)', url)
+    vid = m.group(1)
+    actionTrackId = "".join(random.choice(string.ascii_letters + string.digits) for _ in range(10)) + "_" + str(random.randrange(10**(12),10**13))
+    url = 'https://www.nicovideo.jp/api/watch/v3/' + vid + '?actionTrackId=' + actionTrackId
+    meta = requests.post(url, headers=HEADERS).json()
+    assert meta['meta']['status'] == 200, meta['meta']
+    return meta
+
+def get_threads(meta):
+    nvComment = meta["data"]["comment"]["nvComment"]
+    params = {
+        "params": nvComment["params"],
+        "additionals": {},
+        "threadKey": nvComment["threadKey"]
+    }
+    url = nvComment["server"] + "/v1/threads"
+    r = requests.post(url, json.dumps(params), headers=HEADERS)
+    return r.json()
+
+def get_comments2(url):
+    meta = get_meta(url)
+    title = meta['data']['video']['title']
+    threads = get_threads(meta)
+    comments = []
+    for t in threads['data']['threads']:
+        for c in t['comments']:
+            c = {'chat': {'content': c['body'], 'mail': ' '.join(c['commands']), 'vpos': c['vposMs']/10}}
+            comments.append(c)
+    filename = title + '.ass'
+    get_ass(filename, comments)
+
+def get_channel2(url):
+    r = requests.get(url, headers=HEADERS)
+    processed = []
+    for url in re.findall(r'https://www.nicovideo.jp/watch/\w+', r.text):
+        if url not in processed:
+            get_comments2(url)
+            processed.append(url)
 
 def get_channel(s, url):
     r = s.get(url, headers=HEADERS)
