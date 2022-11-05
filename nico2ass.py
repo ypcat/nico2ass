@@ -253,7 +253,7 @@ def get_ass(filename, comments):
         dialog = f'Dialogue: 2,{time0},{time1},style1,,0000,0000,0000,,{text}'
         lines.append(dialog)
     print(f'save {filename}')
-    with open(filename, 'w') as f:
+    with open(filename.replace('/', ' '), 'w') as f:
         f.writelines(l + '\r\n' for l in lines)
 
 def format_time(t):
