@@ -101,7 +101,7 @@ def get_youtube_comments(fn):
                             count = authorCount.get(author, 0) + 1
                             authorCount[author] = count
                             parts.append(f'{author}({count}):')
-                        for run in item_value['message']['runs']:
+                        for run in item_value.get('message', {}).get('runs', []):
                             if 'text' in run:
                                 parts.append(run['text'])
                             if 'emoji' in run:
