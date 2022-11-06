@@ -35,15 +35,18 @@ def main():
     if len(sys.argv) < 2:
         print(f'usage: {os.path.basename(sys.argv[0])} url')
         return 1
-    url = sys.argv[1]
-    if re.match(r'https://ch.nicovideo.jp/\w+', url):
-        get_channel(url)
-    elif re.match(r'https://www.nicovideo.jp/watch/\w+', url):
-        get_comments(url)
-    elif re.match(r'sm\d+', url):
-        get_comments('https://www.nicovideo.jp/watch/' + url)
+    for url in sys.argv[1:]:
+        if re.match(r'https://ch.nicovideo.jp/\w+', url):
+            get_channel(url)
+        elif re.match(r'https://www.nicovideo.jp/watch/\w+', url):
+            get_comments(url)
+        elif re.match(r'sm\d+', url):
+            get_comments('https://www.nicovideo.jp/watch/' + url)
+        elif url.endswith('.live_chat.json') and os.path.exists(url):
+            get_youtube_comments(url)
+        else:
+            print('invalid url', url)
     else:
-        print('invalid url')
         return 1
     return 0
 
@@ -78,6 +81,39 @@ def get_comments(url):
             comments.append(c)
     filename = title + '.ass'
     get_ass(filename, comments)
+
+def get_youtube_comments(fn):
+    comments = []
+    authorCount = {}
+    for line in open(fn):
+        replayChatItemAction = json.loads(line)['replayChatItemAction']
+        vpos = int(replayChatItemAction['videoOffsetTimeMsec']) / 10
+        for action in replayChatItemAction['actions']:
+            for item in action['addChatItemAction']['item'].values():
+                try:
+                    parts = []
+                    mail = ''
+                    if 'authorName' in item:
+                        author = item['authorName']['simpleText']
+                        count = authorCount.get(author, 0) + 1
+                        authorCount[author] = count
+                        parts.append(f'{author}({count}):')
+                    for run in item['message']['runs']:
+                        if 'text' in run:
+                            parts.append(run['text'])
+                        if 'emoji' in run:
+                            parts.append(run['emoji']['emojiId'])
+                    if 'purchaseAmountText' in item:
+                        parts.append(f"({item['purchaseAmountText']['simpleText']})")
+                        mail = 'yellow big'
+                    text = ' '.join(parts).strip()
+                    if text:
+                        c = {'chat': {'content': text, 'mail': mail, 'vpos': vpos}}
+                        comments.append(c)
+                except:
+                    import pprint; pprint.pprint(item)
+                    raise
+    get_ass(fn.replace('.live_chat.json', '.ass'), comments)
 
 def dedup(items):
     return list(dict.fromkeys(items))
