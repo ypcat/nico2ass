@@ -18,7 +18,7 @@ import requests
 
 from credentials import FORM
 
-SESSION_PATH = os.path.join(os.path.dirname(__file__), 'session')
+SESSION_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'session')
 SESSION_COOKIE = 'user_session='+open(SESSION_PATH).read().strip()+';'
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0',
@@ -86,33 +86,36 @@ def get_youtube_comments(fn):
     comments = []
     authorCount = {}
     for line in open(fn):
-        replayChatItemAction = json.loads(line)['replayChatItemAction']
-        vpos = int(replayChatItemAction['videoOffsetTimeMsec']) / 10
-        for action in replayChatItemAction['actions']:
-            for item in action['addChatItemAction']['item'].values():
-                try:
-                    parts = []
-                    mail = ''
-                    if 'authorName' in item:
-                        author = item['authorName']['simpleText']
-                        count = authorCount.get(author, 0) + 1
-                        authorCount[author] = count
-                        parts.append(f'{author}({count}):')
-                    for run in item['message']['runs']:
-                        if 'text' in run:
-                            parts.append(run['text'])
-                        if 'emoji' in run:
-                            parts.append(run['emoji']['emojiId'])
-                    if 'purchaseAmountText' in item:
-                        parts.append(f"({item['purchaseAmountText']['simpleText']})")
-                        mail = 'yellow big'
-                    text = ' '.join(parts).strip()
-                    if text:
-                        c = {'chat': {'content': text, 'mail': mail, 'vpos': vpos}}
-                        comments.append(c)
-                except:
-                    import pprint; pprint.pprint(item)
-                    raise
+        try:
+            replayChatItemAction = json.loads(line)['replayChatItemAction']
+            vpos = int(replayChatItemAction['videoOffsetTimeMsec']) / 10
+            for action in replayChatItemAction['actions']:
+                for action_key in ['addChatItemAction']: #addLiveChatTickerItemAction
+                    if action_key not in action:
+                        continue
+                    for item_value in action[action_key]['item'].values():
+                        parts = []
+                        mail = ''
+                        if 'authorName' in item_value:
+                            author = item_value['authorName']['simpleText']
+                            count = authorCount.get(author, 0) + 1
+                            authorCount[author] = count
+                            parts.append(f'{author}({count}):')
+                        for run in item_value['message']['runs']:
+                            if 'text' in run:
+                                parts.append(run['text'])
+                            if 'emoji' in run:
+                                parts.append(run['emoji']['emojiId'])
+                        if 'purchaseAmountText' in item_value:
+                            parts.append(f"({item_value['purchaseAmountText']['simpleText']})")
+                            mail = 'yellow big'
+                        text = ' '.join(parts).strip()
+                        if text:
+                            c = {'chat': {'content': text, 'mail': mail, 'vpos': vpos}}
+                            comments.append(c)
+        except:
+            print(line)
+            raise
     get_ass(fn.replace('.live_chat.json', '.ass'), comments)
 
 def dedup(items):
