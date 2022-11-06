@@ -28,21 +28,8 @@ HEADERS = {
 }
 #LOGIN = 'https://account.nicovideo.jp/api/v1/login'
 
-def main0():
-    s = requests.Session()
-    s.mount('https://', requests.adapters.HTTPAdapter(max_retries=100))
-    if len(sys.argv) < 2:
-        print(f'usage: {os.path.basename(sys.argv[0])} url')
-        return 1
-    url = sys.argv[1]
-    if re.match(r'https://ch.nicovideo.jp/\w+', url):
-        get_channel(s, url)
-    elif re.match(r'https://www.nicovideo.jp/watch/\w+', url):
-        get_comments(s, url)
-    else:
-        print('invalid url')
-        return 1
-    return 0
+#s = requests.Session()
+#s.mount('https://', requests.adapters.HTTPAdapter(max_retries=100))
 
 def main():
     if len(sys.argv) < 2:
@@ -50,9 +37,11 @@ def main():
         return 1
     url = sys.argv[1]
     if re.match(r'https://ch.nicovideo.jp/\w+', url):
-        get_channel2(url)
+        get_channel(url)
     elif re.match(r'https://www.nicovideo.jp/watch/\w+', url):
-        get_comments2(url)
+        get_comments(url)
+    elif re.match(r'sm\d+', url):
+        get_comments('https://www.nicovideo.jp/watch/' + url)
     else:
         print('invalid url')
         return 1
@@ -78,7 +67,7 @@ def get_threads(meta):
     r = requests.post(url, json.dumps(params), headers=HEADERS)
     return r.json()
 
-def get_comments2(url):
+def get_comments(url):
     meta = get_meta(url)
     title = meta['data']['video']['title']
     threads = get_threads(meta)
@@ -90,89 +79,13 @@ def get_comments2(url):
     filename = title + '.ass'
     get_ass(filename, comments)
 
-def get_channel2(url):
+def dedup(items):
+    return list(dict.fromkeys(items))
+
+def get_channel(url):
     r = requests.get(url, headers=HEADERS)
-    processed = []
-    for url in re.findall(r'https://www.nicovideo.jp/watch/\w+', r.text):
-        if url not in processed:
-            get_comments2(url)
-            processed.append(url)
-
-def get_channel(s, url):
-    r = s.get(url, headers=HEADERS)
-    processed = []
-    for url in re.findall(r'https://www.nicovideo.jp/watch/\w+', r.text):
-        if url not in processed:
-            get_comments(s, url)
-            processed.append(url)
-
-def get_comments(s, url):
-    m = re.match(r'https://www.nicovideo.jp/watch/(\w+)', url)
-    vid = m.group(1)
-    g = glob.glob(f'*{vid}*.ass')
-    if g:
-        print(f'already processed {g[0]}')
-        return
-    def get_api_data():
-        print(f'get api data {url}')
-        r = s.get(url, headers=HEADERS)
-        m = re.search(r'data-api-data="([^"]*)"', r.text)
-        if m:
-            return attrdict.AttrDict(json.loads(html.unescape(m.group(1))))
-    d = get_api_data()
-    if not d:
-        print('cannot get api data, login and try again')
-        s.post(LOGIN, data=FORM, headers=HEADERS)
-        d = get_api_data()
-    if not d:
-        print('cannot get api data, not from japan ip?')
-        sys.exit(1)
-    q = [{'ping': {'content': 'rs:0'}}]
-    n = 0
-    for t in d.commentComposite.threads:
-        if not t.isActive:
-            continue
-        if t.isThreadkeyRequired:
-            print(f'get thread key {t.id}')
-            url = 'https://flapi.nicovideo.jp/api/getthreadkey'
-            r = s.get(url, params={'thread': t.id}, headers=HEADERS)
-            k = dict(urllib.parse.parse_qsl(r.text))
-        else:
-            k = {'userkey': d.context.userkey}
-        user_id = d.viewer.id or ''
-        q += [{'ping': {'content': f'ps:{n}'}},
-              {'thread': {
-                  'fork': 0,
-                  'thread': f'{t.id}',
-                  'version': '20090904',
-                  'language': 0,
-                  'user_id': f'{user_id}',
-                  'with_global': 1,
-                  'scores': 1,
-                  'nicoru': 0,
-                  **k}},
-              {'ping': {'content': f'pf:{n}'}}]
-        n += 1
-        if t.isLeafRequired:
-            duration = math.ceil(d.video.duration / 60)
-            q += [{'ping': {'content': f'ps:{n}'}},
-                  {'thread_leaves': {
-                      'thread': f'{t.id}',
-                      'language': 0,
-                      'user_id': f'{user_id}',
-                      'content': f'0-{duration}:100,1000',
-                      'scores': 1,
-                      'nicoru': 0,
-                      **k}},
-                  {'ping': {'content': f'pf:{n}'}}]
-            n += 1
-    q += [{'ping': {'content': 'rf:0'}}]
-    print(f'get {d.thread.commentCount} comments')
-    url = 'https://nmsg.nicovideo.jp/api.json/'
-    r = s.post(url, json=q, headers=HEADERS)
-    comments = [c for c in r.json() if c.get('chat', {}).get('content', '')]
-    fn = f'{d.video.title}_{vid}.ass'
-    return get_ass(fn, comments)
+    for url in dedup(re.findall(r'https://www.nicovideo.jp/watch/\w+', r.text)):
+        get_comments(url)
 
 WIDTH = 1280
 HEIGHT = 720
