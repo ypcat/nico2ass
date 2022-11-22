@@ -15,6 +15,10 @@ from pprint import pprint as pp
 
 import attrdict
 import requests
+try:
+    from tqdm import tqdm
+except:
+    tqdm = lambda x: x
 
 from credentials import FORM
 
@@ -84,8 +88,7 @@ def get_comments(url):
 
 def get_youtube_comments(fn):
     comments = []
-    authorCount = {}
-    for line in open(fn):
+    for line in tqdm(open(fn)):
         try:
             replayChatItemAction = json.loads(line)['replayChatItemAction']
             vpos = int(replayChatItemAction['videoOffsetTimeMsec']) / 10
@@ -96,19 +99,19 @@ def get_youtube_comments(fn):
                     for item_value in action[action_key]['item'].values():
                         parts = []
                         mail = ''
-                        if 'authorName' in item_value:
-                            author = item_value['authorName']['simpleText']
-                            count = authorCount.get(author, 0) + 1
-                            authorCount[author] = count
-                            parts.append(f'{author}({count}):')
                         for run in item_value.get('message', {}).get('runs', []):
                             if 'text' in run:
                                 parts.append(run['text'])
                             if 'emoji' in run:
                                 parts.append(run['emoji']['emojiId'])
+                        if 'authorBadges' in item_value:
+                            mail = 'green'
                         if 'purchaseAmountText' in item_value:
-                            parts.append(f"({item_value['purchaseAmountText']['simpleText']})")
                             mail = 'yellow big'
+                            parts.append(item_value['purchaseAmountText']['simpleText'])
+                            if 'authorName' in item_value:
+                                author = item_value['authorName']['simpleText']
+                                parts.append(author)
                         text = ' '.join(parts).strip()
                         if text:
                             c = {'chat': {'content': text, 'mail': mail, 'vpos': vpos}}
@@ -152,11 +155,14 @@ def find_first(keys, values, default):
             return values[k]
     return default
 
+def rgb2bgr(rgb):
+    return rgb[0:2] + rgb[6:8] + rgb[4:6] + rgb[2:4]
+
 def get_ass(filename, comments):
     print(f'convert {len(comments)} comments')
     comments = [attrdict.AttrDict(c) for c in comments]
     chats = []
-    for c in comments:
+    for c in tqdm(comments):
         attr = c.chat
         text = attr.content
         styles = attr.get('mail', '').split()
@@ -193,11 +199,11 @@ def get_ass(filename, comments):
     buf = {'naka': [CEIL, FLOOR],
            'ue': [CEIL, FLOOR],
            'shita': [CEIL, FLOOR]}
-    for chat in sorted(chats, key=lambda c:c.start_time):
+    for chat in tqdm(sorted(chats, key=lambda c:c.start_time)):
         time0 = format_time(chat.start_time)
         time1 = format_time(chat.start_time + chat.duration)
         size = (f'\\fs{chat.size}' if chat.size != DEF_SIZE else '')
-        color = (f'\\c&H{chat.color:#08x}&' if chat.color != DEF_COLOR else '')
+        color = (f'\\c&H{rgb2bgr(f"{chat.color:#08x}")}&' if chat.color != DEF_COLOR else '')
         anim = update_buf(buf[chat.pos], chat)
         if not anim:
             continue
