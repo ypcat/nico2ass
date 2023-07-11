@@ -107,15 +107,17 @@ def get_youtube_comments(fn):
                         if 'authorBadges' in item_value:
                             mail = 'green'
                         if 'purchaseAmountText' in item_value:
-                            mail = 'yellow big'
+                            mail = 'yellow small ue $'
                             parts.append(item_value['purchaseAmountText']['simpleText'])
                             if 'authorName' in item_value:
                                 author = item_value['authorName']['simpleText']
                                 parts.append(author)
                         text = ' '.join(parts).strip()
-                        if text:
-                            c = {'chat': {'content': text, 'mail': mail, 'vpos': vpos}}
+                        while text:
+                            c = {'chat': {'content': text[:36], 'mail': mail, 'vpos': vpos}}
                             comments.append(c)
+                            text = text[36:]
+                            vpos += 100
         except:
             print(line)
             raise
@@ -170,6 +172,7 @@ def get_ass(filename, comments):
         pos = find_first(styles, POSES, DEF_POS)
         is_naka = (pos == 'naka')
         dur = (5 if is_naka else 3)
+        dur = (30 if '$' in styles else dur)
         time = attr.vpos * 0.01
         lines = text.split('\n')
         w = size * max(len(l) for l in lines)
