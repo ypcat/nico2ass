@@ -44,6 +44,8 @@ def main():
             get_channel(url)
         elif re.match(r'https://www.nicovideo.jp/watch/\w+', url):
             get_comments(url)
+        elif os.path.exists(url):
+            get_comments_from_file(url)
         elif re.match(r'sm\d+', url):
             get_comments('https://www.nicovideo.jp/watch/' + url)
         elif url.endswith('.live_chat.json') and os.path.exists(url):
@@ -74,16 +76,26 @@ def get_threads(meta):
     r = requests.post(url, json.dumps(params), headers=HEADERS)
     return r.json()
 
-def get_comments(url):
-    meta = get_meta(url)
-    title = meta['data']['video']['title']
-    threads = get_threads(meta)
+def convert_threads(threads):
     comments = []
     for t in threads['data']['threads']:
         for c in t['comments']:
             c = {'chat': {'content': c['body'], 'mail': ' '.join(c['commands']), 'vpos': c['vposMs']/10}}
             comments.append(c)
+    return comments
+
+def get_comments(url):
+    meta = get_meta(url)
+    title = meta['data']['video']['title']
+    threads = get_threads(meta)
+    comments = convert_threads(threads)
     filename = title + '.ass'
+    get_ass(filename, comments)
+
+def get_comments_from_file(fn):
+    threads = json.load(open(fn))
+    comments = convert_threads(threads)
+    filename = os.path.splitext(fn)[0] + '.ass'
     get_ass(filename, comments)
 
 def get_youtube_comments(fn):
