@@ -1,0 +1,46 @@
+#!/bin/bash
+
+function download () {
+    finish=false
+    while [ "$finish" == false ]; do
+        date
+        nndownload -c $1 &
+        pid=$!
+        start_time=`date +%s`
+        #trap 'jobs' INT
+        while true; do
+            jobs > /dev/null
+            if [ -z "$(jobs)" ]; then
+                finish=1
+                break
+            elif [ $(( `date +%s` - $start_time )) -gt 2400 ]; then
+                echo killed
+                pkill -P $!
+                #kill $!
+                break
+            fi
+            sleep 1
+        done
+        #trap - INT
+    done
+}
+
+function exist () {
+    [ -f "$1" ]
+}
+
+[ -z $1 ] && echo "Usage: $0 url" && exit
+
+if [[ $1 =~ nicovideo.jp/user/[0-9]+/series/[0-9]+ ]]; then
+    urls=`nicoseries.py $1`
+elif [[ $1 =~ nicovideo.jp/watch/sm[0-9]+ ]]; then
+    urls=$1
+fi
+
+for url in $urls; do
+    sm=`echo $url | sed 's/.*sm/sm/'`
+    exist $sm*.ass && echo skip $sm*.ass && continue
+    download $url
+    exist $sm*.xml && nico2ass.py $sm*.xml
+    exist $sm*.ass && arial.py $sm*.ass
+done

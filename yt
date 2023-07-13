@@ -1,0 +1,10 @@
+#!/bin/bash
+[ -z $1 ] && exit 1
+for a in "$@"
+do
+    v=`echo $a | sed 's/.*v=//'`
+    cd /bt/anime/youtube/
+    yt-dlp --write-subs --sub-langs live_chat $v
+    nico2ass.py *$v*live_chat.json
+    arial.py *$v*.ass
+done

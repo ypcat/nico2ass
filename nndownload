@@ -1,0 +1,2 @@
+#!/bin/bash
+/home/pi/.local/bin/nndownload.py --session-cookie `cat ~/.cache/nndownload/user_session.txt` "$@"
