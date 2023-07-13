@@ -44,12 +44,12 @@ def main():
             get_channel(url)
         elif re.match(r'https://www.nicovideo.jp/watch/\w+', url):
             get_comments(url)
-        elif os.path.exists(url):
-            get_comments_from_file(url)
-        elif re.match(r'sm\d+', url):
+        elif re.match(r'^sm\d+$', url):
             get_comments('https://www.nicovideo.jp/watch/' + url)
         elif url.endswith('.live_chat.json') and os.path.exists(url):
             get_youtube_comments(url)
+        elif os.path.exists(url):
+            get_comments_from_file(url)
         else:
             print('invalid url', url)
     else:
