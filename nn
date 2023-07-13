@@ -1,46 +1,44 @@
 #!/bin/bash
 
-function download () {
-    finish=false
-    while [ "$finish" == false ]; do
-        date
-        nndownload -c $1 &
-        pid=$!
-        start_time=`date +%s`
-        #trap 'jobs' INT
-        while true; do
-            jobs > /dev/null
-            if [ -z "$(jobs)" ]; then
-                finish=1
-                break
-            elif [ $(( `date +%s` - $start_time )) -gt 2400 ]; then
-                echo killed
-                pkill -P $!
-                #kill $!
-                break
-            fi
-            sleep 1
-        done
-        #trap - INT
-    done
-}
-
 function exist () {
     [ -f "$1" ]
 }
 
-[ -z $1 ] && echo "Usage: $0 url" && exit
-
-if [[ $1 =~ nicovideo.jp/user/[0-9]+/series/[0-9]+ ]]; then
-    urls=`nicoseries.py $1`
-elif [[ $1 =~ nicovideo.jp/watch/sm[0-9]+ ]]; then
-    urls=$1
-fi
-
-for url in $urls; do
+function download () {
+    url=$1
     sm=`echo $url | sed 's/.*sm/sm/'`
-    exist $sm*.ass && echo skip $sm*.ass && continue
-    download $url
+    exist $sm*.ass && echo skip $sm*.ass && return
+    finish=false
+    while [ "$finish" == false ]; do
+        date
+        nndownload -c $url &
+        pid=$!
+        exist $sm*.mp4 && touch $sm*.mp4
+        while true; do
+            sleep 1
+            jobs > /dev/null
+            if [ -z "$(jobs)" ]; then
+                finish=1
+                break
+            elif exist $sm*.mp4 && [ $(( `date +%s` - `date -r $sm*.mp4 +%s` )) -gt 60 ]; then
+                echo killed
+                pkill -P $!
+                break
+            fi
+        done
+    done
     exist $sm*.xml && nico2ass.py $sm*.xml
     exist $sm*.ass && arial.py $sm*.ass
+}
+
+[ -z $1 ] && echo "Usage: $0 url..." && exit
+
+for url in $@; do
+    if [[ $1 =~ nicovideo.jp/user/[0-9]+/series/[0-9]+ ]]; then
+        for url in `nicoseries.py $1`; do
+            download $url
+        done
+    elif [[ $1 =~ nicovideo.jp/watch/sm[0-9]+ ]]; then
+        download $1
+    fi
 done
