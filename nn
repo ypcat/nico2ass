@@ -1,44 +1,39 @@
 #!/bin/bash
 
-function exist () {
-    [ -f "$1" ]
-}
+# TODO cronjob and logging
 
 function download () {
     url=$1
     sm=`echo $url | sed 's/.*sm/sm/'`
-    exist $sm*.ass && echo skip $sm*.ass && return
-    finish=false
-    while [ "$finish" == false ]; do
+    [ ! -f filelist ] && touch filelist
+    grep -q $sm filelist && echo skip $sm*.ass && return
+    while true; do
         date
         nndownload -c $url &
-        pid=$!
-        exist $sm*.mp4 && touch $sm*.mp4
+        [ -f $sm*.mp4 ] && touch $sm*.mp4
         while true; do
             sleep 1
-            jobs > /dev/null
-            if [ -z "$(jobs)" ]; then
-                finish=1
+            if ! ps -p $! > /dev/null; then
+                [ -f $sm*.xml ] && nico2ass.py $sm*.xml
+                [ -f $sm*.ass ] && arial.py $sm*.ass && echo $sm*.ass >> filelist && return
                 break
-            elif exist $sm*.mp4 && [ $(( `date +%s` - `date -r $sm*.mp4 +%s` )) -gt 60 ]; then
+            elif [ -f $sm*.mp4 ] && [ $(( `date +%s` - `date -r $sm*.mp4 +%s` )) -gt 60 ]; then
                 echo killed
                 pkill -P $!
                 break
             fi
         done
     done
-    exist $sm*.xml && nico2ass.py $sm*.xml
-    exist $sm*.ass && arial.py $sm*.ass
 }
 
 [ -z $1 ] && echo "Usage: $0 url..." && exit
 
 for url in $@; do
-    if [[ $1 =~ nicovideo.jp/user/[0-9]+/series/[0-9]+ ]]; then
-        for url in `nicoseries.py $1`; do
+    if [[ $url =~ nicovideo.jp/user/[0-9]+/series/[0-9]+ ]]; then
+        for url in `nicoseries.py $url`; do
             download $url
         done
-    elif [[ $1 =~ nicovideo.jp/watch/sm[0-9]+ ]]; then
-        download $1
+    elif [[ $url =~ nicovideo.jp/watch/sm[0-9]+ ]]; then
+        download $url
     fi
 done
