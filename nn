@@ -9,12 +9,14 @@ function download () {
     grep -q $sm filelist && echo skip $sm*.ass && return
     while true; do
         date
-        nndownload -c $url &
+        echo "nndownload -vq video-h264-720p -c $url"
+        nndownload -vq video-h264-720p -c $url &
         [ -f $sm*.mp4 ] && touch $sm*.mp4
         while true; do
             sleep 1
             if ! ps -p $! > /dev/null; then
-                [ -f $sm*.xml ] && nico2ass.py $sm*.xml
+                #[ -f $sm*.xml ] && nico2ass.py $sm*.xml
+                [ -f $sm*.comments.json ] && nico2ass.py $sm*.comments.json
                 [ -f $sm*.ass ] && arial.py $sm*.ass && echo $sm*.ass >> filelist && return
                 break
             elif [ -f $sm*.mp4 ] && [ $(( `date +%s` - `date -r $sm*.mp4 +%s` )) -gt 60 ]; then
@@ -29,7 +31,7 @@ function download () {
 [ -z $1 ] && echo "Usage: $0 url..." && exit
 
 for url in $@; do
-    if [[ $url =~ nicovideo.jp/user/[0-9]+/series/[0-9]+ ]]; then
+    if [[ $url =~ nicovideo.jp/user/[0-9]+/(series|mylist)/[0-9]+ ]]; then
         for url in `nicoseries.py $url`; do
             download $url
         done

@@ -1,0 +1,24 @@
+#!/bin/bash
+set -e
+[ -z $1 ] && echo $0 playlistId && exit 1
+LIST=$1
+KEY="AIzaSyCgwpLJ0WqkG_KkrRoEW92atgqOINLFc78"
+items=$(curl -s "https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${LIST}&key=${KEY}&maxResults=50")
+videoIds=$(echo $items | jq -r '[.items[]|.contentDetails|.videoId]|join(",")')
+videos=$(curl -s "https://www.googleapis.com/youtube/v3/videos?key=${KEY}&id=${videoIds}&part=liveStreamingDetails,snippet&maxResults=50")
+lives=$(echo $videos | jq -c '.items[]|{id:.id, end:.liveStreamingDetails.actualEndTime}')
+for i in $lives
+do
+    d=`echo $i | jq -r .end`
+    if [[ $d != null && $d < `date -u -Iseconds -d '-4 hour'` ]]
+    then
+        id=`echo $i | jq -r .id`
+        if grep -q $id /bt/youtube/list
+        then
+            true #&& echo $id already downloaded
+        else
+            yt "https://www.youtube.com/watch?v=$id"
+            echo $id >> /bt/youtube/list
+        fi
+    fi
+done
