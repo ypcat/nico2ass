@@ -2,10 +2,10 @@
 set -e
 [ -z $1 ] && echo $0 playlistId && exit 1
 LIST=$1
-KEY="AIzaSyCgwpLJ0WqkG_KkrRoEW92atgqOINLFc78"
-items=$(curl -s "https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${LIST}&key=${KEY}&maxResults=50")
+. $(dirname $(readlink -e $0))/.env
+items=$(curl -s "https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${LIST}&key=${YOUTUBE_API_KEY}&maxResults=50")
 videoIds=$(echo $items | jq -r '[.items[]|.contentDetails|.videoId]|join(",")')
-videos=$(curl -s "https://www.googleapis.com/youtube/v3/videos?key=${KEY}&id=${videoIds}&part=liveStreamingDetails,snippet&maxResults=50")
+videos=$(curl -s "https://www.googleapis.com/youtube/v3/videos?key=${YOUTUBE_API_KEY}&id=${videoIds}&part=liveStreamingDetails,snippet&maxResults=50")
 lives=$(echo $videos | jq -c '.items[]|{id:.id, end:.liveStreamingDetails.actualEndTime}')
 for i in $lives
 do
