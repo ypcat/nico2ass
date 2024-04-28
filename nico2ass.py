@@ -18,7 +18,7 @@ import requests
 try:
     from tqdm import tqdm
 except:
-    tqdm = lambda x: x
+    tqdm = lambda x, **kw: x
 
 from credentials import FORM
 
@@ -100,7 +100,7 @@ def get_comments_from_file(fn):
 
 def get_youtube_comments(fn):
     comments = []
-    for line in tqdm(open(fn)):
+    for line in tqdm(open(fn), mininterval=1):
         try:
             replayChatItemAction = json.loads(line)['replayChatItemAction']
             vpos = int(replayChatItemAction['videoOffsetTimeMsec']) / 10
@@ -176,7 +176,7 @@ def get_ass(filename, comments):
     print(f'convert {len(comments)} comments')
     comments = [attrdict.AttrDict(c) for c in comments]
     chats = []
-    for c in tqdm(comments):
+    for c in tqdm(comments, mininterval=1):
         attr = c.chat
         text = attr.content
         styles = attr.get('mail', '').split()
@@ -214,7 +214,7 @@ def get_ass(filename, comments):
     buf = {'naka': [CEIL, FLOOR],
            'ue': [CEIL, FLOOR],
            'shita': [CEIL, FLOOR]}
-    for chat in tqdm(sorted(chats, key=lambda c:c.start_time)):
+    for chat in tqdm(sorted(chats, key=lambda c:c.start_time), mininterval=1):
         time0 = format_time(chat.start_time)
         time1 = format_time(chat.start_time + chat.duration)
         size = (f'\\fs{chat.size}' if chat.size != DEF_SIZE else '')

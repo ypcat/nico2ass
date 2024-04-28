@@ -5,7 +5,7 @@ do
     tg.py 60069004 "downloading $a"
     v=`echo $a | sed 's/.*v=//'`
     cd /bt/anime/youtube/
-    yt-dlp --write-subs --sub-langs live_chat $v
+    yt-dlp --no-progress --write-subs --sub-langs live_chat $v
     nico2ass.py *$v*live_chat.json
     arial.py *$v*.ass
     tg.py 60069004 "downloaded $a"

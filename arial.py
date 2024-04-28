@@ -29,7 +29,7 @@ def translate(fn, table):
 def main():
     table = get_table()
     for fn in sys.argv[1:]:
-        print(fn)
+        print(f"tofu {fn}")
         translate(fn, table)
 
 if __name__ == '__main__':
