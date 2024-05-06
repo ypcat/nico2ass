@@ -40,16 +40,19 @@ def main():
         print(f'usage: {os.path.basename(sys.argv[0])} url')
         return 1
     for url in sys.argv[1:]:
+        fn = url if os.path.exists(url) else ''
         if re.match(r'https://ch.nicovideo.jp/\w+', url):
             get_channel(url)
         elif re.match(r'https://www.nicovideo.jp/watch/\w+', url):
             get_comments(url)
         elif re.match(r'^sm\d+$', url):
             get_comments('https://www.nicovideo.jp/watch/' + url)
-        elif url.endswith('.live_chat.json') and os.path.exists(url):
-            get_youtube_comments(url)
-        elif os.path.exists(url):
-            get_comments_from_file(url)
+        elif fn.endswith('.live_chat.json'):
+            get_youtube_comments(fn)
+        elif fn.endswith('.irc'):
+            get_twitch_comments(fn)
+        elif fn:
+            get_comments_from_file(fn)
         else:
             print('invalid url', url)
     else:
@@ -134,6 +137,21 @@ def get_youtube_comments(fn):
             print(line)
             raise
     get_ass(fn.replace('.live_chat.json', '.ass'), comments)
+
+def get_twitch_comments(fn):
+    comments = []
+    for line in tqdm(open(fn), mininterval=1):
+        try:
+            ts, text = line.strip().split(' ', 1)
+            h, m, s, ms = [int(i) for i in re.findall(r'\d+', ts)]
+            vpos = ((h * 3600 + m * 60 + s) * 1000 + ms) / 10
+            mail = ''
+            c = {'chat': {'content': text, 'mail': mail, 'vpos': vpos}}
+            comments.append(c)
+        except:
+            print(line)
+            raise
+    get_ass(fn.replace('.irc', '.ass'), comments)
 
 def dedup(items):
     return list(dict.fromkeys(items))
