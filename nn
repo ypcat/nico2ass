@@ -4,13 +4,13 @@
 
 function download () {
     url=$1
-    sm=`echo $url | sed 's/.*sm/sm/'`
+    sm=`echo $url | sed -E 's/.*sm([0-9]+).*/sm\1/'`
     [ ! -f filelist ] && touch filelist
     grep -q $sm filelist && echo skip $sm*.ass && return
     while true; do
         date
         echo "nndownload -vq video-h264-720p -c $url"
-        nndownload -vq video-h264-720p -c $url &
+        nndownload -vq video-h264-720p -c $url --session-cookie ~/.cache/nndownload/user_session.txt &
         [ -f $sm*.mp4 ] && touch $sm*.mp4
         while true; do
             sleep 1
