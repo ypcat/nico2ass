@@ -98,7 +98,10 @@ def get_comments(url):
 def get_comments_from_file(fn):
     threads = json.load(open(fn))
     comments = convert_threads(threads)
-    filename = os.path.splitext(fn)[0] + '.ass'
+    if fn.endswith('.comments.json'):
+        filename = fn.replace('.comments.json', '.ass')
+    else:
+        filename = os.path.splitext(fn)[0] + '.ass'
     get_ass(filename, comments)
 
 def get_youtube_comments(fn):
