@@ -13,7 +13,7 @@ do
     if [[ $d != null && $d < `date -u -Iseconds -d '-4 hour'` ]]
     then
         id=`echo $i | jq -r .id`
-        if grep -q $id /bt/youtube/list
+        if grep -q -- $id /bt/youtube/list
         then
             true #&& echo $id already downloaded
         else
